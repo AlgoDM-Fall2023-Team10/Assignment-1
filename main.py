@@ -66,6 +66,33 @@ query_default_params = {
         'DEPCNT01':[9]
     },
     }
+# Function to run the query with dynamic parameters
+def run_query(selected_query, params):
+    selected_sql_query = queries[selected_query]
+    default_params = query_default_params[selected_query]  # Get default params for the selected query
+
+    # Update the params dictionary with user-selected values or defaults
+    for param_name, param_value in default_params.items():
+        if param_name not in params:
+            params[param_name] = param_value
+
+    try:
+        # Create a parameterized query with bindparams for all selected values
+        param_query = text(selected_sql_query).bindparams(**params)
+
+        # Execute the SQL query
+        with snowflake_engine.connect() as connection:
+            result = connection.execute(param_query)
+            df = pd.DataFrame(result.fetchall(), columns=result.keys())
+
+        # Display the query result
+        st.write("Query Result:")
+        st.dataframe(df)
+
+    except Exception as e:
+        st.error(f"An error occurred: {str(e)}")
+        
+
 
 
 
