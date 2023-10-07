@@ -386,5 +386,76 @@ queries = {
         ,i_item_desc
         ,revenueratio;
     """,
+    'Query 9': """
+        select  
+        substr(w_warehouse_name,1,20)
+        ,sm_type
+        ,cc_name
+        ,sum(case when (cs_ship_date_sk - cs_sold_date_sk <= 30 ) then 1 else 0 end)  as "30 days" 
+        ,sum(case when (cs_ship_date_sk - cs_sold_date_sk > 30) and 
+                 (cs_ship_date_sk - cs_sold_date_sk <= 60) then 1 else 0 end )  as "31-60 days" 
+        ,sum(case when (cs_ship_date_sk - cs_sold_date_sk > 60) and 
+                 (cs_ship_date_sk - cs_sold_date_sk <= 90) then 1 else 0 end)  as "61-90 days" 
+        ,sum(case when (cs_ship_date_sk - cs_sold_date_sk > 90) and
+                 (cs_ship_date_sk - cs_sold_date_sk <= 120) then 1 else 0 end)  as "91-120 days" 
+        ,sum(case when (cs_ship_date_sk - cs_sold_date_sk  > 120) then 1 else 0 end)  as ">120 days" 
+        from
+        SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.catalog_sales,
+        SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.warehouse,
+        SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.ship_mode,
+        SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.call_center,
+        SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.date_dim
+        where
+        d_month_seq between :DMS01 and :DMS01 + 11
+        and cs_ship_date_sk   = d_date_sk
+        and cs_warehouse_sk   = w_warehouse_sk
+        and cs_ship_mode_sk   = sm_ship_mode_sk
+        and cs_call_center_sk = cc_call_center_sk
+        group by
+        substr(w_warehouse_name,1,20)
+        ,sm_type
+        ,cc_name
+        order by substr(w_warehouse_name,1,20)
+        ,sm_type
+        ,cc_name
+        limit 100;
+    """,
+    'Query 10': """
+        select  cast(amc as decimal(15,4))/cast(pmc as decimal(15,4)) am_pm_ratio
+        from ( select count(*) amc
+        from SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.web_sales, 
+        SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.household_demographics , 
+        SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.time_dim, 
+        SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.web_page
+        where ws_sold_time_sk = time_dim.t_time_sk
+         and ws_ship_hdemo_sk = household_demographics.hd_demo_sk
+         and ws_web_page_sk = web_page.wp_web_page_sk
+         and time_dim.t_hour between :HOUR_AM01 and :HOUR_AM01 +1
+         and household_demographics.hd_dep_count = :DEPCNT01
+         and web_page.wp_char_count between 5000 and 5200) at,
+        ( select count(*) pmc
+        from SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.web_sales, 
+        SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.household_demographics, 
+        SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.time_dim, 
+        SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.web_page
+        where ws_sold_time_sk = time_dim.t_time_sk
+         and ws_ship_hdemo_sk = household_demographics.hd_demo_sk
+         and ws_web_page_sk = web_page.wp_web_page_sk
+         and time_dim.t_hour between :HOUR_PM01 and :HOUR_PM01 +1
+         and household_demographics.hd_dep_count = :DEPCNT01
+         and web_page.wp_char_count between 5000 and 5200) pt
+        order by am_pm_ratio
+        limit 100;
+    """,
+}
+
+# Display the SQL code for the selected query
+st.subheader("SQL Query:")
+st.text_area(label=" ", value=queries[selected_query], height=400)
+
+# To display the output of selected query
+if st.button("Run Query", key="run_query_button"):
+    params = query_params[selected_query]
+    run_query(selected_query, params)
 
 
