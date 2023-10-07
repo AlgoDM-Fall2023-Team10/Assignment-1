@@ -281,5 +281,110 @@ queries = {
         order by count(distinct ws_order_number)
         limit 100;
     """,
+    'Query 5': """
+        with ws_wh as
+        (select ws1.ws_order_number,ws1.ws_warehouse_sk wh1,ws2.ws_warehouse_sk wh2
+        from SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.web_sales ws1,SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.web_sales ws2
+        where ws1.ws_order_number = ws2.ws_order_number
+        and ws1.ws_warehouse_sk <> ws2.ws_warehouse_sk)
+        select  
+        count(distinct ws_order_number) as "order count",
+        sum(ws_ext_ship_cost) as "total shipping cost",
+        sum(ws_net_profit) as "total net profit"
+        from
+        SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.web_sales ws1,
+        SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.date_dim,
+        SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.customer_address,
+        SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.web_site
+        where
+        d_date between :start_date and 
+        dateadd(day,60,to_date(:start_date))
+        and ws1.ws_ship_date_sk = d_date_sk
+        and ws1.ws_ship_addr_sk = ca_address_sk
+        and ca_state = :ca_state
+        and ws1.ws_web_site_sk = web_site_sk
+        and web_company_name = 'pri'
+        and ws1.ws_order_number in (select ws_order_number
+                            from ws_wh)
+        and ws1.ws_order_number in (select wr_order_number
+                            from SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.web_returns,ws_wh
+                            where wr_order_number = ws_wh.ws_order_number)
+        order by count(distinct ws_order_number)
+        limit 100;
+    """,
+    'Query 6': """
+        select  count(*) 
+        from SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.store_sales,
+        SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.household_demographics, 
+        SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.time_dim, 
+        SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.store
+        where ss_sold_time_sk = time_dim.t_time_sk   
+        and ss_hdemo_sk = household_demographics.hd_demo_sk 
+        and ss_store_sk = s_store_sk
+        and time_dim.t_hour = :t_hour
+        and time_dim.t_minute >= 30
+        and household_demographics.hd_dep_count = :hd_dep_count
+        and store.s_store_name = 'ese'
+        order by count(*)
+        limit 100;
+    """,
+    'Query 7': """
+        with ssci as (
+        select ss_customer_sk customer_sk,
+        ss_item_sk item_sk
+        from SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.store_sales,
+        SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.date_dim
+        where ss_sold_date_sk = d_date_sk
+         and d_month_seq between 1214 and 1214 + 11
+            group by ss_customer_sk,
+            ss_item_sk),
+        csci as(
+        select cs_bill_customer_sk customer_sk,
+        cs_item_sk item_sk
+        from SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.catalog_sales,
+        SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.date_dim
+        where cs_sold_date_sk = d_date_sk
+        and d_month_seq between :YEAR01 and :YEAR01 + 11
+        group by cs_bill_customer_sk,
+        cs_item_sk)
+        select  sum(case when ssci.customer_sk is not null and csci.customer_sk is null then 1 else 0 end) store_only,
+        sum(case when ssci.customer_sk is null and csci.customer_sk is not null then 1 else 0 end) catalog_only,
+        sum(case when ssci.customer_sk is not null and csci.customer_sk is not null then 1 else 0 end) store_and_catalog
+        from ssci full outer join csci on (ssci.customer_sk=csci.customer_sk
+        and ssci.item_sk = csci.item_sk)
+        limit 100;
+    """,
+    'Query 8': """
+        select i_item_id,
+        i_item_desc, 
+        i_category, 
+        i_class, 
+        i_current_price,
+        sum(ss_ext_sales_price) as itemrevenue, 
+        sum(ss_ext_sales_price)*100/sum(sum(ss_ext_sales_price)) over
+        (partition by i_class) as revenueratio
+        from	
+	    SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.store_sales,
+    	SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.item, 
+    	SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.date_dim
+        where 
+	    ss_item_sk = i_item_sk 
+  	    and i_category in (:CATEGORY01, :CATEGORY02, :CATEGORY03)
+  	    and ss_sold_date_sk = d_date_sk
+	    and d_date between cast(:start_date as date) 
+		and dateadd(day,30,to_date(:start_date))
+        group by 
+	    i_item_id
+        ,i_item_desc 
+        ,i_category
+        ,i_class
+        ,i_current_price
+        order by 
+	    i_category
+        ,i_class
+        ,i_item_id
+        ,i_item_desc
+        ,revenueratio;
+    """,
 
 
