@@ -21,7 +21,51 @@ SNOWFLAKE_account_identifier = os.getenv("SNOWFLAKE_account_identifier")
 snowflake_connection_url = f"snowflake://{SNOWFLAKE_username}:{SNOWFLAKE_password}@{SNOWFLAKE_account_identifier}"
 snowflake_engine = create_engine(snowflake_connection_url)
 
-
+# Dictionary to define default parameters
+query_default_params = {
+    'Query 1': {
+        'd_year': [1998],          
+        'd_moy': [11],            
+        'hd_buy_potential': ['Unknown'],  
+        'ca_gmt_offset': [-6],     
+    },
+    'Query 2':{
+        'i_manufact_id': [350],
+        'start_date': ['2000-01-27']
+    },
+    'Query 3':{
+        'r_reason_desc': ["reason 70"]
+    },
+    'Query 4': {
+        'ca_state':['CA'],
+        'start_date':['2002-02-01']
+    },
+    'Query 5': {
+        'ca_state':['TN'],
+        'start_date':['2002-02-01']
+     },
+     'Query 6': {
+        't_hour':[8],
+        'hd_dep_count':[5]
+     },
+    'Query 7': {
+        'YEAR01':['1214']
+    },
+    'Query 8': {
+       'start_date':['2002-05-27'], 
+       'CATEGORY01':['Women'],
+       'CATEGORY02':['Electronics'],
+       'CATEGORY03':['Shoes']
+    },
+    'Query 9': {
+        'DMS01':[1200]
+    },
+    'Query 10': {
+        'HOUR_PM01':[18],
+        'HOUR_AM01':[8],
+        'DEPCNT01':[9]
+    },
+    }
 
 
 
