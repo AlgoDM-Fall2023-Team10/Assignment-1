@@ -1,4 +1,5 @@
 import streamlit as st
+import sqlalchemy
 from sqlalchemy import create_engine, text, bindparam
 import pandas as pd
 import os
