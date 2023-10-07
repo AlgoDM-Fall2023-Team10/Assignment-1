@@ -168,5 +168,118 @@ if selected_query in query_params:
         st.sidebar.write(f"{param_name}: {param_value}")
 
 
+# SQL queries
+queries = {
+    'Query 1': """
+        SELECT 
+        cc_call_center_id Call_Center,
+        cc_name Call_Center_Name,
+        cc_manager Manager,
+        SUM(cr_net_loss) Returns_Loss
+        FROM
+        SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.call_center,
+        SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.catalog_returns,
+        SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.date_dim,
+        SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.customer,
+        SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.customer_address,
+        SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.customer_demographics,
+        SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.household_demographics
+        WHERE
+        cr_call_center_sk = cc_call_center_sk
+        AND cr_returned_date_sk = d_date_sk
+        AND cr_returning_customer_sk = c_customer_sk
+        AND cd_demo_sk = c_current_cdemo_sk
+        AND hd_demo_sk = c_current_hdemo_sk
+        AND ca_address_sk = c_current_addr_sk
+        AND d_year = :d_year
+        AND d_moy = :d_moy
+        AND (
+            (cd_marital_status = 'M' AND cd_education_status = 'Unknown')
+            OR (cd_marital_status = 'W' AND cd_education_status = 'Advanced Degree')
+        )
+        AND hd_buy_potential LIKE :hd_buy_potential
+        AND ca_gmt_offset = :ca_gmt_offset
+        GROUP BY cc_call_center_id, cc_name, cc_manager, cd_marital_status, cd_education_status
+        ORDER BY SUM(cr_net_loss) DESC;
+    """,
+    'Query 2': """
+        select 
+        sum(ws_ext_discount_amt)  as "Excess Discount Amount"
+        from
+        SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.web_sales,
+        SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.item,
+        SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.date_dim
+        where
+        i_manufact_id = :i_manufact_id
+        and i_item_sk = ws_item_sk
+        and d_date between :start_date and
+        (cast(:start_date as date) + interval '90 days')
+        and d_date_sk = ws_sold_date_sk
+        and ws_ext_discount_amt
+        > (
+        SELECT
+            1.3 * avg(ws_ext_discount_amt)
+        FROM
+             SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.web_sales,
+             SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.date_dim
+        WHERE
+             ws_item_sk = i_item_sk
+             and d_date between :start_date and
+             (cast(:start_date as date) + interval '90 days')
+             and d_date_sk = ws_sold_date_sk
+        )
+         order by sum(ws_ext_discount_amt)
+         limit 100;
+    """,
+    'Query 3': """
+        select  
+        ss_customer_sk,  
+        sum(act_sales) as sumsales
+        from  
+        (select  
+        ss_item_sk,  
+        ss_ticket_number,  
+        ss_customer_sk,  
+        case when sr_return_quantity is not null then (ss_quantity - sr_return_quantity) * ss_sales_price  
+             else (ss_quantity * ss_sales_price) end as act_sales  
+        from SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.store_sales  
+        left outer join SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.store_returns on (sr_item_sk = ss_item_sk  
+                                         and sr_ticket_number = ss_ticket_number)  
+        , SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.reason  
+        where sr_reason_sk = r_reason_sk  
+          and r_reason_desc = :r_reason_desc) t  
+        group by ss_customer_sk  
+        order by sumsales, ss_customer_sk  
+        limit 100;
+
+    """,
+    'Query 4': """
+        select  
+        count(distinct ws_order_number) as "order count",
+        sum(ws_ext_ship_cost) as "total shipping cost",
+        sum(ws_net_profit) as "total net profit"
+        from
+        SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.web_sales ws1,
+        SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.date_dim,
+        SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.customer_address,
+        SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.web_site
+        where
+        d_date between :start_date and 
+        dateadd(day,60,to_date(:start_date))
+        and ws1.ws_ship_date_sk = d_date_sk
+        and ws1.ws_ship_addr_sk = ca_address_sk
+        and ca_state = :ca_state
+        and ws1.ws_web_site_sk = web_site_sk
+        and web_company_name = 'pri'
+        and exists (select *
+            from SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.web_sales ws2
+            where ws1.ws_order_number = ws2.ws_order_number
+              and ws1.ws_warehouse_sk <> ws2.ws_warehouse_sk)
+                and not exists(select *
+               from SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.web_returns wr1
+               where ws1.ws_order_number = wr1.wr_order_number)
+        order by count(distinct ws_order_number)
+        limit 100;
+    """,
 
 
